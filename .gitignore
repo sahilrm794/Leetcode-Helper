@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+db.sqlite3
+
+# Virtual Envs
+env/
+venv/
+
+# Environment variables
+.env
+
+# Node / Chrome extension
+node_modules/
+extension/node_modules/
+
+# Editor junk
+.vscode/
+.DS_Store
