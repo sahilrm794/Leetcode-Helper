@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Extension Options</title>
+  <style>
+    :root {
+      --bg-color: #121212;
+      --card-bg: #1e1e1e;
+      --text-color: #ffffffcc;
+      --label-color: #ffffffee;
+      --border-color: #333;
+      --input-bg: #2b2b2b;
+      --link-color: #4dabf7;
+      --shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      --btn-bg: #4dabf7;
+      --btn-bg-hover: #339af0;
+      --btn-text: #fff;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+
+    .card {
+      background-color: var(--card-bg);
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      max-width: 600px;
+      width: 100%;
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 24px;
+      color: white;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 10px;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 25px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: var(--label-color);
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      font-size: 15px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      background-color: var(--input-bg);
+      color: white;
+    }
+
+    input[type="text"]::placeholder {
+      color: #bbb;
+    }
+
+    p {
+      margin-top: 8px;
+      margin-bottom: 12px;
+    }
+
+    a {
+      color: var(--link-color);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    ol {
+      padding-left: 18px;
+      margin: 0;
+    }
+
+    li {
+      margin-bottom: 8px;
+    }
+
+    .btn-save {
+      display: inline-block;
+      background-color: var(--btn-bg);
+      color: var(--btn-text);
+      padding: 10px 20px;
+      font-size: 15px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      margin-top: 20px;
+    }
+
+    .btn-save:hover {
+      background-color: var(--btn-bg-hover);
+    }
+
+    .success-message {
+      display: none;
+      margin-top: 15px;
+      color: #66d9ef;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>AI Summary Settings</h1>
+    <div class="form-group">
+      <label for="api-key">Gemini API Key</label>
+      <input type="text" id="api-key" placeholder="Enter Your Gemini API Key" />
+      <p>
+        You can get an API key from
+        <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a>
+      </p>
+      <ol>
+        <li>Click the link above to open Google AI Studio.</li>
+        <li>Sign in with your Google account.</li>
+        <li>Click <strong>"Create API key"</strong> if you haven't already.</li>
+        <li>Copy the generated key and paste it above.</li>
+      </ol>
+      <button class="btn-save">Save</button>
+      <div class="success-message" id="success-msg">/div>
+    </div>
+  </div>
+  <script src="option.js"></script>
+</body>
+</html>
