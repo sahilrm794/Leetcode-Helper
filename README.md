@@ -167,7 +167,7 @@ MIT License
 
 ## 👨‍💻 Author
 
-**Sahil**
+**Sahil Rajesh Mustilwar**
 
 ---
 
