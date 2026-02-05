@@ -1,113 +1,394 @@
-const input = document.getElementById('questionInput');
-const sendBtn = document.getElementById('sendButton');
-const hintBox = document.getElementById('hintBox');
+// ============================================
+// LeetCode Helper - Popup Script
+// ============================================
 
-function sendQuestion() {
-  const question = input.value.trim();
-  if (question) {
-    console.log("User asked:", question);
-    input.value = '';
-    hintBox.value="Extracting Answer..."
+// DOM Elements
+const chatMessages = document.getElementById('chatMessages');
+const questionInput = document.getElementById('questionInput');
+const sendButton = document.getElementById('sendButton');
+const notLeetcode = document.getElementById('notLeetcode');
+const chatContainer = document.getElementById('chatContainer');
+const inputArea = document.getElementById('inputArea');
+const statusBar = document.getElementById('statusBar');
+const statusDot = document.getElementById('statusDot');
+const statusText = document.getElementById('statusText');
+const saveStatus = document.getElementById('saveStatus');
+const loginBtn = document.getElementById('loginBtn');
+const logoutBtn = document.getElementById('logoutBtn');
+const userInfo = document.getElementById('userInfo');
+const userAvatar = document.getElementById('userAvatar');
+
+// State
+let currentUser = null;
+let currentProblem = null;
+let conversationHistory = [];
+let currentProblemId = null;
+let isLoading = false;
+
+// ============================================
+// Initialization
+// ============================================
+
+document.addEventListener('DOMContentLoaded', async () => {
+  // Check auth state
+  await checkAuthState();
+
+  // Check if on LeetCode problem page
+  const isOnLeetCode = await checkIfOnLeetCode();
+
+  if (!isOnLeetCode) {
+    showNotLeetCodeMessage();
+    return;
   }
 
-}
-function fetchLeetCodeData() {
-  hintBox.innerHTML = '<div class="loading"><div class="loader"></div></div>';
-  chrome.storage.sync.get(["geminiApiKey"], ({ geminiApiKey }) =>{
-    if (!geminiApiKey) {
-      hintBox.innerHTML =
-        "API key not found. Please set your API key in the extension options.";
-      return;
-    }
-  
-  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-    if (!tabs || !tabs[0]) return;
+  // Fetch initial hint
+  await fetchInitialHint();
+});
 
-    chrome.tabs.sendMessage(
-      tabs[0].id, 
-      { type: 'GET_HINT_DATA' },
-       async function (response) {
-        if (chrome.runtime.lastError || !response) {
-          hintBox.textContent = '❌ Failed to fetch problem data.';
+// ============================================
+// LeetCode Check
+// ============================================
+
+async function checkIfOnLeetCode() {
+  return new Promise((resolve) => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (!tabs || !tabs[0]) {
+        resolve(false);
+        return;
+      }
+
+      const url = tabs[0].url || '';
+      const isLeetCode = url.includes('leetcode.com/problems/');
+      resolve(isLeetCode);
+    });
+  });
+}
+
+function showNotLeetCodeMessage() {
+  notLeetcode.classList.remove('hidden');
+  chatContainer.classList.add('hidden');
+  inputArea.classList.add('hidden');
+  statusBar.classList.add('hidden');
+}
+
+// ============================================
+// Authentication (Firebase via Backend)
+// ============================================
+
+async function checkAuthState() {
+  try {
+    const result = await chrome.storage.local.get(['user', 'authToken']);
+    if (result.user && result.authToken) {
+      currentUser = result.user;
+      updateUIForLoggedInUser();
+    }
+  } catch (error) {
+    console.error('Error checking auth state:', error);
+  }
+}
+
+function updateUIForLoggedInUser() {
+  loginBtn.classList.add('hidden');
+  userInfo.classList.remove('hidden');
+  if (currentUser.photoURL) {
+    userAvatar.src = currentUser.photoURL;
+  } else {
+    userAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.displayName || 'User')}&background=ffa116&color=fff`;
+  }
+  saveStatus.textContent = 'Logged in - hints will be saved';
+}
+
+function updateUIForLoggedOutUser() {
+  loginBtn.classList.remove('hidden');
+  userInfo.classList.add('hidden');
+  currentUser = null;
+  saveStatus.textContent = 'Not logged in';
+}
+
+// Login with Google (opens new tab for Firebase auth)
+loginBtn.addEventListener('click', async () => {
+  // Open the dashboard login page - it will handle Firebase auth
+  // and redirect back with the token
+  const dashboardUrl = 'http://localhost:9002/login?extension=true';
+
+  chrome.tabs.create({ url: dashboardUrl }, (tab) => {
+    // Listen for the auth callback
+    chrome.tabs.onUpdated.addListener(function listener(tabId, changeInfo, updatedTab) {
+      if (tabId === tab.id && changeInfo.url && changeInfo.url.includes('auth-callback')) {
+        // Extract token from URL
+        const url = new URL(changeInfo.url);
+        const token = url.searchParams.get('token');
+        const userData = url.searchParams.get('user');
+
+        if (token && userData) {
+          try {
+            const user = JSON.parse(decodeURIComponent(userData));
+            chrome.storage.local.set({ user, authToken: token });
+            currentUser = user;
+            updateUIForLoggedInUser();
+          } catch (e) {
+            console.error('Error parsing user data:', e);
+          }
+        }
+
+        // Close the auth tab
+        chrome.tabs.remove(tabId);
+        chrome.tabs.onUpdated.removeListener(listener);
+      }
+    });
+  });
+});
+
+logoutBtn.addEventListener('click', async () => {
+  await chrome.storage.local.remove(['user', 'authToken']);
+  updateUIForLoggedOutUser();
+});
+
+// ============================================
+// Problem Data Fetching
+// ============================================
+
+async function fetchProblemData() {
+  return new Promise((resolve, reject) => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (!tabs || !tabs[0]) {
+        reject(new Error('No active tab'));
+        return;
+      }
+
+      chrome.tabs.sendMessage(tabs[0].id, { type: 'GET_HINT_DATA' }, (response) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
           return;
         }
 
-        const { title, description, solution } = response;
-      
-        try{
-          const hint=await getGeminiHint(title,description,solution,geminiApiKey);
-          hintBox.textContent=hint;
-        }catch(error){
-          hintBox.textContent="Gemini error: "+ error.message;
+        if (!response) {
+          reject(new Error('No response from content script'));
+          return;
         }
-    }
-  );
-  });
+
+        resolve(response);
+      });
+    });
   });
 }
 
+// ============================================
+// Hint Fetching
+// ============================================
 
-//Gemini Function to get hint
-async function getGeminiHint(title,description,solution,geminiApiKey) {
-  const prompt = `You are an expert competitive programmer and mentor helping students improve their coding skills. A user has written a partial or complete solution to a LeetCode-style problem. Your job is to act like a mentor and give helpful, concise feedback **without giving away the full correct solution unless it is already present**.
+async function fetchInitialHint() {
+  setLoading(true);
+  addLoadingMessage();
 
-    Here is what you need to do:
+  try {
+    // Fetch problem data from LeetCode page
+    const problemData = await fetchProblemData();
+    currentProblem = problemData;
 
-    1. **Understand the user's intent** from the provided code and explain briefly what their current solution seems to be doing.
-    2. **Check the logic** and **suggest whether the user is moving in the right direction** to solve the problem or not.
-    3. Look for common mistakes such as:
-    - Incorrect or inconsistent **variable names** (e.g., \`arr\` vs \`nums\`, \`n\` misused etc.)
-    - Off-by-one errors or **out-of-bound access** in **loop conditions**.
-    - Accidental use of \`--\` instead of \`++\`, or vice versa.
-    - Any obvious **syntax errors**.
-    4. If the code is complete, point out if there are **ways to optimize the time or space complexity**.
-    5. If the solution has a bug or won't work in some cases, **explain clearly why it will fail** and give an **example edge case** that would break it (without solving it).
-    6. Be supportive and constructive — give **clear hints** or ask **leading questions** that guide the user to the right solution path.
-    7. Do **not provide the full solution** unless it is already fully implemented and just needs review.
+    // Call backend API
+    const hint = await callBackendAPI({
+      title: problemData.title,
+      description: problemData.description,
+      user_code: problemData.solution
+    });
 
-    Here is the Leetcode Problem:
-    ${description}
-    Here is the user's code:
-    ${solution}
-     The response should not be like this
-     Okay, here's a concise hint to guide you:
+    // Remove loading message
+    removeLoadingMessage();
 
-*   **Understanding:** Your current solution uses nested loops to check all possible pairs of numbers in the input array. This will find the correct answer, but it might not be the most efficient approach.
+    // Add mentor response
+    addMessage('mentor', hint.hint);
 
-*   **Logic:** The logic is correct. You are checking every possible pair to see if they sum to the target.
+    // Store conversation
+    conversationHistory.push({
+      role: 'assistant',
+      content: hint.hint
+    });
 
-*   **Optimization:** Consider using a hash map (or JavaScript object) to store each number and its index as you iterate through the array. This will allow you to check if the complement (target - current number) exists in the array in O(1) time.
-
-*   **Time Complexity:** Think about how using a hash map could reduce the time complexity from O(n^2) to O(n).
-It should be like this
-Your solution has a time complexity of O(n^2). You can optimize this by using a hash map to store the numbers you've seen and their indices. This will reduce the time complexity to O(n).
-  Give a very concised Hint Of 10-15 Lines: 
-    Also Just Give hint dont add any line like "Okay, I will give you a concise hint in points to pass on to the user:" because i am going to give the response whatever u will give directly the same response to user.So,it should be like mentor not AI.Also in response refer user as you.Also give the response in points.
-     `
-    const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
-      {
-        method:"POST",
-        headers:{"Content-Type":"application/json" },
-        body: JSON.stringify({
-          contents:[{ parts: [{text:prompt}]}],
-          generationConfig:{temperature:0.4},
-        }),
-      }
-    )
-    if(!res.ok){
-      const {error}=await res.json();
-      throw new Error(error?.message || "Request failed");
+    // Store problem ID if returned
+    if (hint.problem_id) {
+      currentProblemId = hint.problem_id;
+      saveStatus.textContent = 'Saved to dashboard';
     }
-    const data=await res.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text??"No Solution.";
+
+    setStatus('Ready');
+  } catch (error) {
+    removeLoadingMessage();
+    addMessage('mentor', `Error: ${error.message}\n\nMake sure you're on a LeetCode problem page and the backend server is running.`);
+    setStatus('Error', true);
+  }
+
+  setLoading(false);
 }
+
+async function sendFollowUpQuestion() {
+  const question = questionInput.value.trim();
+  if (!question || isLoading || !currentProblem) return;
+
+  // Clear input
+  questionInput.value = '';
+
+  // Add user message
+  addMessage('user', question);
+  conversationHistory.push({ role: 'user', content: question });
+
+  setLoading(true);
+  addLoadingMessage();
+
+  try {
+    const hint = await callBackendAPI({
+      title: currentProblem.title,
+      description: currentProblem.description,
+      user_code: currentProblem.solution,
+      follow_up_question: question,
+      conversation_history: conversationHistory
+    });
+
+    removeLoadingMessage();
+    addMessage('mentor', hint.hint);
+
+    conversationHistory.push({
+      role: 'assistant',
+      content: hint.hint
+    });
+
+    // Update existing problem if logged in
+    if (currentProblemId && currentUser) {
+      await updateProblemHint(hint.hint);
+    }
+
+    setStatus('Ready');
+  } catch (error) {
+    removeLoadingMessage();
+    addMessage('mentor', `Error: ${error.message}`);
+    setStatus('Error', true);
+  }
+
+  setLoading(false);
+}
+
+// ============================================
+// Backend API Calls
+// ============================================
+
+async function callBackendAPI(data) {
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+
+  // Add auth token if logged in
+  const storage = await chrome.storage.local.get(['authToken']);
+  if (storage.authToken) {
+    headers['Authorization'] = `Bearer ${storage.authToken}`;
+  }
+
+  const response = await fetch(`${CONFIG.API_BASE_URL}/hint/`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(data)
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to get hint');
+  }
+
+  return response.json();
+}
+
+async function updateProblemHint(hint) {
+  try {
+    const storage = await chrome.storage.local.get(['authToken']);
+    if (!storage.authToken || !currentProblemId) return;
+
+    await fetch(`${CONFIG.API_BASE_URL}/problems/${currentProblemId}/hint/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${storage.authToken}`
+      },
+      body: JSON.stringify({ hint })
+    });
+
+    saveStatus.textContent = 'Updated';
+  } catch (error) {
+    console.error('Error updating problem hint:', error);
+  }
+}
+
+// ============================================
+// UI Helpers
+// ============================================
+
+function addMessage(type, content) {
+  const messageDiv = document.createElement('div');
+  messageDiv.className = `message ${type}`;
+
+  const label = type === 'user' ? 'You' : 'Mentor';
+
+  messageDiv.innerHTML = `
+    <span class="message-label">${label}</span>
+    <div class="message-content">${escapeHtml(content)}</div>
+  `;
+
+  chatMessages.appendChild(messageDiv);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function addLoadingMessage() {
+  const messageDiv = document.createElement('div');
+  messageDiv.className = 'message mentor loading-message';
+  messageDiv.id = 'loadingMessage';
+
+  messageDiv.innerHTML = `
+    <span class="message-label">Mentor</span>
+    <div class="message-content">
+      <div class="loader"></div>
+      <span>Analyzing your code...</span>
+    </div>
+  `;
+
+  chatMessages.appendChild(messageDiv);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function removeLoadingMessage() {
+  const loadingMessage = document.getElementById('loadingMessage');
+  if (loadingMessage) {
+    loadingMessage.remove();
+  }
+}
+
+function setLoading(loading) {
+  isLoading = loading;
+  questionInput.disabled = loading;
+  sendButton.disabled = loading;
+
+  if (loading) {
+    setStatus('Thinking...', false);
+  }
+}
+
+function setStatus(text, isError = false) {
+  statusText.textContent = text;
+  statusDot.classList.toggle('offline', isError);
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// ============================================
 // Event Listeners
-sendBtn.addEventListener('click', sendQuestion);
-input.addEventListener('keydown', (event) => {
-  if (event.key === 'Enter') {
-    sendQuestion();
+// ============================================
+
+sendButton.addEventListener('click', sendFollowUpQuestion);
+
+questionInput.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    sendFollowUpQuestion();
   }
 });
-
-// Fetch data when popup opens
-document.addEventListener('DOMContentLoaded', fetchLeetCodeData);

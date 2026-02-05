@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LeetCode Helper</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  
+
   <style>
     :root {
       --bg-color: #0a0a0a;
@@ -13,44 +13,50 @@
       --card-border: rgba(255, 255, 255, 0.1);
       --text-main: #ffffff;
       --text-muted: #a1a1aa;
-      --accent-gradient: linear-gradient(135deg, #ffa116 0%, #ff5e00 100%); /* LeetCode Orange vibe */
+      --accent-gradient: linear-gradient(135deg, #ffa116 0%, #ff5e00 100%);
       --accent-glow: rgba(255, 161, 22, 0.4);
       --input-bg: rgba(0, 0, 0, 0.3);
       --font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --success-color: #22c55e;
+      --error-color: #ef4444;
     }
 
     * {
       box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
 
     body {
-      margin: 0;
       font-family: var(--font-family);
       background-color: var(--bg-color);
       color: var(--text-main);
-      width: 400px; /* Optimal extension width */
-      height: 600px; /* Fixed height for consistent feel */
+      width: 420px;
+      height: 600px;
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      /* Subtle background mesh gradient effect */
       background: radial-gradient(circle at top right, #1a1a1a 0%, #0a0a0a 60%);
     }
 
     /* --- Header --- */
     header {
-      padding: 20px 24px 10px;
+      padding: 16px 20px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       border-bottom: 1px solid var(--card-border);
       background: rgba(10, 10, 10, 0.8);
       backdrop-filter: blur(10px);
-      z-index: 10;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
 
     h1 {
-      margin: 0;
       font-size: 18px;
       font-weight: 600;
       background: var(--accent-gradient);
@@ -60,84 +66,208 @@
     }
 
     .badge {
-      font-size: 10px;
-      padding: 2px 8px;
-      border-radius: 12px;
+      font-size: 9px;
+      padding: 2px 6px;
+      border-radius: 10px;
       background: var(--card-border);
       color: var(--text-muted);
       text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-
-    /* --- Main Content Area --- */
-    main {
-      flex: 1;
-      padding: 20px 24px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-
-    h2 {
-      margin: 0 0 10px 0;
-      font-size: 13px;
-      color: var(--text-muted);
-      text-transform: uppercase;
       letter-spacing: 0.5px;
-      font-weight: 500;
+    }
+
+    /* --- User Section --- */
+    .user-section {
       display: flex;
       align-items: center;
       gap: 8px;
     }
 
-    h2::before {
-      content: '';
-      width: 6px;
-      height: 6px;
+    .user-avatar {
+      width: 28px;
+      height: 28px;
       border-radius: 50%;
-      background: var(--accent-gradient);
+      border: 2px solid var(--card-border);
     }
 
-    /* --- Hint Box (Code Editor Look) --- */
-    .hint-container {
+    .login-btn {
+      background: var(--accent-gradient);
+      border: none;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 16px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .login-btn:hover {
+      transform: scale(1.02);
+      box-shadow: 0 0 15px var(--accent-glow);
+    }
+
+    .login-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .logout-btn {
+      background: transparent;
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .logout-btn:hover {
+      border-color: var(--error-color);
+      color: var(--error-color);
+    }
+
+    /* --- Main Content --- */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* --- Not LeetCode Message --- */
+    .not-leetcode {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 40px;
+      text-align: center;
+    }
+
+    .not-leetcode-icon {
+      width: 80px;
+      height: 80px;
+      margin-bottom: 20px;
+      opacity: 0.6;
+    }
+
+    .not-leetcode h2 {
+      font-size: 18px;
+      margin-bottom: 10px;
+      color: var(--text-main);
+    }
+
+    .not-leetcode p {
+      color: var(--text-muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .not-leetcode a {
+      color: #ffa116;
+      text-decoration: none;
+    }
+
+    .not-leetcode a:hover {
+      text-decoration: underline;
+    }
+
+    /* --- Chat Container --- */
+    .chat-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .chat-messages {
+      flex: 1;
+      padding: 16px 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .chat-messages::-webkit-scrollbar {
+      width: 6px;
+    }
+    .chat-messages::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .chat-messages::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+    }
+
+    /* --- Message Bubbles --- */
+    .message {
+      display: flex;
+      flex-direction: column;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    .message-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .message-content {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 12px;
-      padding: 16px;
-      flex: 1;
-      overflow-y: auto;
-      position: relative;
-      transition: all 0.2s ease;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-    }
-
-    .hint-container:hover {
-      border-color: rgba(255, 161, 22, 0.3);
-    }
-
-    .hint-text {
+      padding: 14px 16px;
       font-size: 14px;
       line-height: 1.6;
       color: #e4e4e7;
       white-space: pre-wrap;
     }
 
-    /* Custom Scrollbar for hints */
-    .hint-container::-webkit-scrollbar {
-      width: 6px;
+    .message.user .message-content {
+      background: rgba(255, 161, 22, 0.1);
+      border-color: rgba(255, 161, 22, 0.2);
     }
-    .hint-container::-webkit-scrollbar-track {
-      background: transparent;
+
+    .message.mentor .message-content {
+      background: var(--card-bg);
     }
-    .hint-container::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 3px;
+
+    /* --- Loader --- */
+    .loading-message .message-content {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .loader {
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255, 161, 22, 0.3);
+      border-radius: 50%;
+      border-top-color: #ffa116;
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     /* --- Input Area --- */
     .input-area {
-      padding: 16px 24px;
+      padding: 16px 20px;
       background: rgba(10, 10, 10, 0.9);
       border-top: 1px solid var(--card-border);
       display: flex;
@@ -164,6 +294,11 @@
       box-shadow: 0 0 0 2px rgba(255, 161, 22, 0.1);
     }
 
+    .chat-input:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
     .send-button {
       background: var(--accent-gradient);
       border: none;
@@ -179,78 +314,111 @@
     }
 
     .send-button svg {
-      width: 20px;
-      height: 20px;
+      width: 18px;
+      height: 18px;
       fill: #fff;
-      margin-left: 2px; /* Visual optical correction */
+      margin-left: 2px;
     }
 
-    .send-button:hover {
+    .send-button:hover:not(:disabled) {
       transform: scale(1.05);
       box-shadow: 0 0 25px var(--accent-glow);
     }
 
-    .send-button:active {
+    .send-button:active:not(:disabled) {
       transform: scale(0.95);
     }
 
-    /* --- Loader --- */
-    .loader-container {
+    .send-button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* --- Status Bar --- */
+    .status-bar {
+      padding: 8px 20px;
+      background: rgba(0, 0, 0, 0.3);
+      border-top: 1px solid var(--card-border);
       display: flex;
-      justify-content: center;
+      justify-content: space-between;
       align-items: center;
-      height: 100%;
+      font-size: 11px;
+      color: var(--text-muted);
     }
 
-    .loader {
-      width: 24px;
-      height: 24px;
-      border: 3px solid rgba(255, 161, 22, 0.3);
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
-      border-top-color: #ffa116;
-      animation: spin 1s ease-in-out infinite;
+      background: var(--success-color);
     }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
+    .status-dot.offline {
+      background: var(--text-muted);
     }
 
-    /* Fade in animation for content */
-    .fade-in {
-      animation: fadeIn 0.4s ease-out;
+    .save-status {
+      font-style: italic;
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(5px); }
-      to { opacity: 1; transform: translateY(0); }
+    /* --- Hidden --- */
+    .hidden {
+      display: none !important;
     }
-
   </style>
 </head>
 <body>
 
   <header>
-    <h1>LeetCode Helper</h1>
-    <span class="badge">v2.0</span>
+    <div class="header-left">
+      <h1>LeetCode Helper</h1>
+      <span class="badge">v2.0</span>
+    </div>
+    <div class="user-section" id="userSection">
+      <!-- Login button or user avatar will be inserted here -->
+      <button class="login-btn" id="loginBtn">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"/>
+        </svg>
+        Sign in
+      </button>
+      <div class="hidden" id="userInfo">
+        <img class="user-avatar" id="userAvatar" src="" alt="User">
+        <button class="logout-btn" id="logoutBtn">Logout</button>
+      </div>
+    </div>
   </header>
 
   <main>
-    <div style="flex: 1; display: flex; flex-direction: column;">
-      <h2><i class="icon"></i> Smart Hints</h2>
-      <div class="hint-container" id="hintBox">
-        <div class="loader-container">
-            <div class="loader"></div>
-        </div>
-        </div>
+    <!-- Not on LeetCode Message -->
+    <div class="not-leetcode hidden" id="notLeetcode">
+      <svg class="not-leetcode-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+      </svg>
+      <h2>Not on LeetCode</h2>
+      <p>Please navigate to a <a href="https://leetcode.com/problemset/" target="_blank">LeetCode problem</a> to use this extension.</p>
+    </div>
+
+    <!-- Chat Container -->
+    <div class="chat-container" id="chatContainer">
+      <div class="chat-messages" id="chatMessages">
+        <!-- Messages will be inserted here -->
+      </div>
     </div>
   </main>
 
-  <div class="input-area">
+  <div class="input-area" id="inputArea">
     <input
       type="text"
       class="chat-input"
       id="questionInput"
-      placeholder="Ask about time complexity, logic..."
+      placeholder="Ask a follow-up question..."
       autocomplete="off"
     />
     <button class="send-button" id="sendButton">
@@ -260,6 +428,15 @@
     </button>
   </div>
 
+  <div class="status-bar" id="statusBar">
+    <div class="status-indicator">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">Ready</span>
+    </div>
+    <span class="save-status" id="saveStatus"></span>
+  </div>
+
+  <script src="config.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>
