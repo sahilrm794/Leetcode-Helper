@@ -145,8 +145,8 @@ STATIC_URL = 'static/'
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Gemini API Key
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+# Groq API Key
+GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 
 # Firebase Configuration
 FIREBASE_SERVICE_ACCOUNT_PATH = os.getenv('FIREBASE_SERVICE_ACCOUNT_PATH', BASE_DIR / 'firebase-service-account.json')

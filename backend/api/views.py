@@ -65,7 +65,7 @@ def get_hint(request):
 
     # Call Gemini API
     try:
-        hint = call_gemini_api(prompt)
+        hint = call_groq_api(prompt)
 
         # If user is authenticated, save the problem/hint
         problem_id = None
@@ -166,24 +166,32 @@ Do not start with phrases like "Okay, I will give you a concise hint" - just giv
     return base_prompt
 
 
-def call_gemini_api(prompt):
-    """Call Gemini API and return the response."""
-    api_key = os.getenv("GEMINI_API_KEY")
+def call_groq_api(prompt):
+    """Call Groq API and return the response."""
+    api_key = os.getenv("GROQ_API_KEY")
 
     if not api_key:
-        raise Exception("Gemini API key not configured")
+        raise Exception("Groq API key not configured")
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+    url = "https://api.groq.com/openai/v1/chat/completions"
 
     payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.4}
+        "model": "llama-3.3-70b-versatile",
+        "messages": [
+            {"role": "system", "content": "You are an expert competitive programmer and coding mentor."},
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.4,
+        "max_tokens": 1024
     }
 
     response = requests.post(
         url,
         json=payload,
-        headers={"Content-Type": "application/json"}
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}"
+        }
     )
 
     if not response.ok:
@@ -191,7 +199,7 @@ def call_gemini_api(prompt):
         raise Exception(error_data.get('error', {}).get('message', 'Request failed'))
 
     data = response.json()
-    return data.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', 'No hint generated.')
+    return data.get('choices', [{}])[0].get('message', {}).get('content', 'No hint generated.')
 
 
 @api_view(['GET'])
