@@ -79,19 +79,18 @@ If you're solving a Two Sum problem using a brute-force nested loop approach, th
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
 │   ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────────┐    │
-│   │  Firebase Auth  │    │   API Views     │    │    Gemini API       │    │
-│   │  Verification   │───►│  /api/hint/     │───►│   (Google AI)       │    │
+│   │  Firebase Auth  │    │   API Views     │    │    Groq API         │    │
+│   │  Verification   │───►│  /api/hint/     │───►│   (LLaMA 3.3 70B)  │    │
 │   │                 │    │  /api/problems/ │    │                     │    │
 │   └─────────────────┘    └─────────────────┘    └─────────────────────┘    │
 │                                   │                                          │
 │                                   ▼                                          │
 │                          ┌─────────────────┐                                │
+│                          │   SQLite (dev)  │                                │
 │                          │   PostgreSQL    │                                │
-│                          │   (NeonDB)      │                                │
-│                          │                 │                                │
+│                          │   (NeonDB prod) │                                │
 │                          │  - Users        │                                │
 │                          │  - Problems     │                                │
-│                          │  - Hints        │                                │
 │                          └─────────────────┘                                │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -106,12 +105,12 @@ If you're solving a Two Sum problem using a brute-force nested loop approach, th
 |------------|---------|
 | **Django 5.2** | Web framework |
 | **Django REST Framework** | API development |
-| **PostgreSQL (NeonDB)** | Database (serverless) |
+| **SQLite / PostgreSQL (NeonDB)** | Database (SQLite for dev, NeonDB for prod) |
 | **Firebase Admin SDK** | Token verification |
 | **python-dotenv** | Environment variables |
-| **requests** | HTTP client for Gemini API |
+| **requests** | HTTP client for Groq API |
 | **django-cors-headers** | CORS handling |
-| **psycopg2-binary** | PostgreSQL driver |
+| **psycopg2-binary** | PostgreSQL driver (production) |
 
 ### Extension
 | Technology | Purpose |
@@ -133,9 +132,9 @@ If you're solving a Two Sum problem using a brute-force nested loop approach, th
 ### External Services
 | Service | Purpose |
 |---------|---------|
-| **Google Gemini API** | AI hint generation |
+| **Groq** | AI hint generation (LLaMA 3.3 70B via fast inference) |
 | **Firebase** | Authentication |
-| **NeonDB** | Serverless PostgreSQL |
+| **NeonDB** | Serverless PostgreSQL (production) |
 
 ---
 
@@ -153,7 +152,7 @@ Leetcode-helper/
 │   │   ├── models.py             # Database models
 │   │   ├── serializers.py        # DRF serializers
 │   │   ├── urls.py               # API routes
-│   │   └── views.py              # API logic & Gemini integration
+│   │   └── views.py              # API logic & Groq integration
 │   │
 │   ├── backend/                  # Django project settings
 │   │   ├── __init__.py
@@ -312,11 +311,11 @@ def get_hint(request):
     description = request.data.get('description')
     user_code = request.data.get('user_code')
 
-    # 2. Build prompt for Gemini
+    # 2. Build prompt for Groq
     prompt = build_mentor_prompt(title, description, user_code, ...)
 
-    # 3. Call Gemini API
-    hint = call_gemini_api(prompt)
+    # 3. Call Groq API
+    hint = call_groq_api(prompt)
 
     # 4. Save to database if logged in
     if request.user.is_authenticated:
@@ -360,23 +359,33 @@ def build_mentor_prompt(title, description, user_code, conversation_history, fol
     return prompt
 ```
 
-#### Function: `call_gemini_api(prompt)`
-Makes HTTP request to Google's Gemini API.
+#### Function: `call_groq_api(prompt)`
+Makes HTTP request to Groq's OpenAI-compatible API.
 
 ```python
-def call_gemini_api(prompt):
+def call_groq_api(prompt):
     """
-    Calls Gemini 2.0 Flash model with the prompt.
+    Calls LLaMA 3.3 70B model via Groq's fast inference API.
+    Uses OpenAI-compatible chat completions endpoint.
     Returns the generated text response.
     """
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={API_KEY}"
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    api_key = os.getenv("GROQ_API_KEY")
 
     response = requests.post(url, json={
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.4}
+        "model": "llama-3.3-70b-versatile",
+        "messages": [
+            {"role": "system", "content": "You are an expert competitive programmer and coding mentor."},
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.4,
+        "max_tokens": 1024
+    }, headers={
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
     })
 
-    return response.json()['candidates'][0]['content']['parts'][0]['text']
+    return response.json()['choices'][0]['message']['content']
 ```
 
 ---
@@ -421,14 +430,14 @@ REST_FRAMEWORK = {
     ),
 }
 
-# Database - PostgreSQL (NeonDB) or SQLite fallback
+# Database - SQLite (dev) or PostgreSQL (prod via DATABASE_URL)
 if DATABASE_URL:
-    DATABASES = {...}  # PostgreSQL config
+    DATABASES = {...}  # PostgreSQL config (NeonDB)
 else:
-    DATABASES = {...}  # SQLite fallback
+    DATABASES = {...}  # SQLite fallback for local dev
 
 # Custom settings
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 FIREBASE_SERVICE_ACCOUNT_PATH = os.getenv('FIREBASE_SERVICE_ACCOUNT_PATH')
 ```
 
@@ -579,21 +588,18 @@ async function checkAuthState() {
 }
 
 // Login button opens dashboard login page
-loginBtn.addEventListener('click', async () => {
-    const dashboardUrl = 'http://localhost:9002/login?extension=true';
-    chrome.tabs.create({ url: dashboardUrl }, (tab) => {
-        // Listen for auth callback
-        chrome.tabs.onUpdated.addListener(function listener(tabId, changeInfo) {
-            if (changeInfo.url?.includes('auth-callback')) {
-                // Extract token from URL, save to storage
-                const url = new URL(changeInfo.url);
-                const token = url.searchParams.get('token');
-                const userData = JSON.parse(url.searchParams.get('user'));
-                chrome.storage.local.set({ user: userData, authToken: token });
-                chrome.tabs.remove(tabId);  // Close auth tab
-            }
-        });
-    });
+// Auth callback is handled by background.js (not popup.js)
+// because the popup closes when the browser switches tabs
+loginBtn.addEventListener('click', () => {
+    chrome.tabs.create({ url: 'http://localhost:9002/login?extension=true' });
+});
+
+// Listen for auth changes saved by background.js
+chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.authToken && changes.authToken.newValue) {
+        currentUser = changes.user?.newValue;
+        updateUIForLoggedInUser();
+    }
 });
 
 // ================== HINT FETCHING ==================
@@ -909,6 +915,7 @@ export default function DashboardPage() {
          ▼
 2. Extension opens dashboard login page in new tab
    URL: http://localhost:9002/login?extension=true
+   (popup closes automatically when tab switches)
          │
          ▼
 3. User clicks "Sign in with Google" on dashboard
@@ -924,20 +931,26 @@ export default function DashboardPage() {
    URL: /auth-callback?token=xxx&user={...}
          │
          ▼
-7. Extension's popup.js is listening for this URL change
+7. background.js (service worker) is listening for URL changes
+   (NOT popup.js - popup closed when tab switched!)
          │
          ▼
-8. Extension extracts token and user data from URL
+8. background.js extracts token and user data from URL
          │
          ▼
-9. Extension saves to chrome.storage.local
+9. background.js saves to chrome.storage.local
          │
          ▼
-10. Extension closes the auth tab
+10. background.js closes the auth tab after 1.5s
           │
           ▼
-11. User is now logged in! Token is sent with API requests.
+11. Next time user opens popup, checkAuthState() finds the token
+    User is now logged in! Token is sent with API requests.
 ```
+
+**Why background.js?** Chrome extension popups close the moment the user
+clicks away or switches tabs. Any listeners in popup.js are lost. The
+background service worker persists and catches the auth callback.
 
 ### Flow 2: Dashboard Login
 
@@ -1027,7 +1040,7 @@ let currentProblemId = null;   // Backend problem ID
 │     }                                                           │
 │                                                                  │
 │  5. Backend builds prompt with context                          │
-│     └─► Gemini sees the full conversation                       │
+│     └─► Groq sees the full conversation                       │
 │     └─► Response is contextual                                  │
 │                                                                  │
 │  6. Response added to history                                   │
@@ -1228,7 +1241,7 @@ conversation_history: conversationHistory.slice(-5)
 
 | Reason | Explanation |
 |--------|-------------|
-| **Token Limits** | Gemini API has input token limits; too much context = error |
+| **Token Limits** | Groq API has input token limits; too much context = slower responses |
 | **Cost** | More tokens = more API cost |
 | **Relevance** | Recent messages are more relevant than old ones |
 | **Performance** | Smaller payload = faster API response |
@@ -1597,16 +1610,17 @@ def build_mentor_prompt(title, description, user_code, conversation_history, fol
    - views.py extracts data
          │
          ▼
-10. Backend builds Gemini prompt:
+10. Backend builds prompt:
     "You are a mentor... Problem: Two Sum...
      User's code: function twoSum..."
          │
          ▼
-11. Backend calls Gemini API:
-    POST https://generativelanguage.googleapis.com/...
+11. Backend calls Groq API:
+    POST https://api.groq.com/openai/v1/chat/completions
+    Model: llama-3.3-70b-versatile
          │
          ▼
-12. Gemini returns hint text
+12. Groq returns hint text (via LLaMA 3.3 70B)
          │
          ▼
 13. Backend saves to database (if user authenticated):
@@ -1758,9 +1772,9 @@ Get user statistics.
 - Python 3.10+
 - Node.js 18+
 - Chrome browser
-- NeonDB account (or PostgreSQL)
 - Firebase project
-- Google AI Studio account (for Gemini API key)
+- Groq account (free at console.groq.com)
+- NeonDB account (optional - SQLite used for local dev)
 
 ### 1. Clone Repository
 ```bash
@@ -1815,11 +1829,11 @@ npm run dev
 ## Common Issues & Troubleshooting
 
 ### Issue: "Connection timed out" to NeonDB
-**Cause:** NeonDB suspends inactive projects.
+**Cause:** NeonDB free tier auto-suspends inactive projects.
 **Solution:**
-1. Go to NeonDB console
-2. Wake up your project
-3. Try again
+1. Comment out `DATABASE_URL` in `.env` to use SQLite for local dev
+2. OR go to NeonDB console and wake up your project
+3. Run `python manage.py migrate` after switching databases
 
 ### Issue: "Firebase token verification failed"
 **Cause:** firebase-service-account.json not found or invalid.
@@ -1840,11 +1854,13 @@ npm run dev
 3. If persists, check content.js selectors
 
 ### Issue: Hints not saving to dashboard
-**Cause:** User not logged in or token expired.
+**Cause:** User not logged in, token expired, or migrations not run.
 **Solution:**
-1. Click "Sign in" in extension
-2. Complete Google OAuth flow
-3. Try again
+1. Ensure `python manage.py migrate` was run
+2. Click "Sign in" in extension
+3. Complete Google OAuth flow (handled by background.js)
+4. Reopen extension popup - you should see your avatar
+5. Try again
 
 ### Issue: CORS errors
 **Cause:** Backend CORS not configured properly.
@@ -1856,9 +1872,9 @@ npm run dev
 
 ### Backend (.env)
 ```
-GEMINI_API_KEY=your_gemini_api_key
+GROQ_API_KEY=your_groq_api_key
 FIREBASE_SERVICE_ACCOUNT_PATH=firebase-service-account.json
-DATABASE_URL=postgresql://user:pass@host/db?sslmode=require
+# DATABASE_URL=postgresql://user:pass@host/db?sslmode=require  # Uncomment for NeonDB
 SECRET_KEY=your_django_secret_key
 ```
 
@@ -1900,5 +1916,21 @@ const CONFIG = {
 
 ---
 
-*Last updated: February 2024*
+### Issue: "Sign in" button doesn't work in extension
+**Cause:** Old extension version with auth listener in popup.js.
+**Solution:**
+1. Go to `chrome://extensions/`
+2. Reload the extension
+3. Auth is now handled by `background.js` (persists when popup closes)
+
+### Issue: Groq API errors
+**Cause:** Invalid API key or rate limit exceeded.
+**Solution:**
+1. Verify `GROQ_API_KEY` in `.env` starts with `gsk_`
+2. Check Groq console for rate limits (free tier: 30 req/min)
+3. Restart Django server after changing `.env`
+
+---
+
+*Last updated: February 2026*
 *Author: Sahil Rajesh Mustilwar*

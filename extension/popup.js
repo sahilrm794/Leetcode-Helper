@@ -106,37 +106,21 @@ function updateUIForLoggedOutUser() {
 }
 
 // Login with Google (opens new tab for Firebase auth)
-loginBtn.addEventListener('click', async () => {
-  // Open the dashboard login page - it will handle Firebase auth
-  // and redirect back with the token
-  const dashboardUrl = 'http://localhost:9002/login?extension=true';
+// The background.js handles the auth callback and saves the token to storage
+loginBtn.addEventListener('click', () => {
+  chrome.tabs.create({ url: 'http://localhost:9002/login?extension=true' });
+});
 
-  chrome.tabs.create({ url: dashboardUrl }, (tab) => {
-    // Listen for the auth callback
-    chrome.tabs.onUpdated.addListener(function listener(tabId, changeInfo, updatedTab) {
-      if (tabId === tab.id && changeInfo.url && changeInfo.url.includes('auth-callback')) {
-        // Extract token from URL
-        const url = new URL(changeInfo.url);
-        const token = url.searchParams.get('token');
-        const userData = url.searchParams.get('user');
-
-        if (token && userData) {
-          try {
-            const user = JSON.parse(decodeURIComponent(userData));
-            chrome.storage.local.set({ user, authToken: token });
-            currentUser = user;
-            updateUIForLoggedInUser();
-          } catch (e) {
-            console.error('Error parsing user data:', e);
-          }
-        }
-
-        // Close the auth tab
-        chrome.tabs.remove(tabId);
-        chrome.tabs.onUpdated.removeListener(listener);
-      }
-    });
-  });
+// Listen for auth changes saved by background.js
+// Updates popup UI if it happens to still be open
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.authToken && changes.authToken.newValue) {
+    const user = changes.user?.newValue;
+    if (user) {
+      currentUser = user;
+      updateUIForLoggedInUser();
+    }
+  }
 });
 
 logoutBtn.addEventListener('click', async () => {

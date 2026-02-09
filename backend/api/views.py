@@ -38,7 +38,7 @@ class ProblemDetailView(generics.RetrieveUpdateDestroyAPIView):
 @permission_classes([permissions.AllowAny])
 def get_hint(request):
     """
-    Get AI hint from Gemini for a LeetCode problem.
+    Get AI hint from Groq for a LeetCode problem.
 
     Request body:
     {
@@ -63,7 +63,7 @@ def get_hint(request):
     # Build the prompt
     prompt = build_mentor_prompt(title, description, user_code, conversation_history, follow_up_question)
 
-    # Call Gemini API
+    # Call Groq API
     try:
         hint = call_groq_api(prompt)
 
@@ -115,7 +115,7 @@ def update_problem_hint(request, pk):
 
 
 def build_mentor_prompt(title, description, user_code, conversation_history=None, follow_up_question=''):
-    """Build the prompt for Gemini API."""
+    """Build the prompt for Groq API."""
 
     base_prompt = f"""You are an expert competitive programmer and mentor helping students improve their coding skills. A user has written a partial or complete solution to a LeetCode-style problem. Your job is to act like a mentor and give helpful, concise feedback **without giving away the full correct solution unless it is already present**.
 
